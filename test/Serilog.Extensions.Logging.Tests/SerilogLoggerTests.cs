@@ -15,6 +15,9 @@ namespace Serilog.Extensions.Logging.Test
     {
         private const string Name = "test";
         private const string TestMessage = "This is a test";
+        
+        private static Func<object, Exception, string> Formatter = (state, ex) =>
+            state == null ? "null" : state.ToString();
 
         private Tuple<SerilogLogger, SerilogSink> SetUp(LogLevel logLevel)
         {
@@ -44,9 +47,9 @@ namespace Serilog.Extensions.Logging.Test
             switch (logLevel)
             {
                 case LogLevel.Debug:
-                    return LogEventLevel.Verbose;
-                case LogLevel.Verbose:
                     return LogEventLevel.Debug;
+                case LogLevel.Trace:
+                    return LogEventLevel.Verbose;
                 case LogLevel.Information:
                     return LogEventLevel.Information;
                 case LogLevel.Warning:
@@ -63,11 +66,11 @@ namespace Serilog.Extensions.Logging.Test
         [Fact]
         public void LogsWhenNullFilterGiven()
         {
-            var t = SetUp(LogLevel.Verbose);
+            var t = SetUp(LogLevel.Trace);
             var logger = t.Item1;
             var sink = t.Item2;
 
-            logger.Log(LogLevel.Information, 0, TestMessage, null, null);
+            logger.Log(LogLevel.Information, 0, TestMessage, null, Formatter);
 
             Assert.Equal(1, sink.Writes.Count);
         }
@@ -75,20 +78,20 @@ namespace Serilog.Extensions.Logging.Test
         [Fact]
         public void LogsCorrectLevel()
         {
-            var t = SetUp(LogLevel.Debug);
+            var t = SetUp(LogLevel.Trace);
             var logger = t.Item1;
             var sink = t.Item2;
 
-            logger.Log(LogLevel.Debug, 0, TestMessage, null, null);
-            logger.Log(LogLevel.Verbose, 0, TestMessage, null, null);
-            logger.Log(LogLevel.Information, 0, TestMessage, null, null);
-            logger.Log(LogLevel.Warning, 0, TestMessage, null, null);
-            logger.Log(LogLevel.Error, 0, TestMessage, null, null);
-            logger.Log(LogLevel.Critical, 0, TestMessage, null, null);
+            logger.Log(LogLevel.Debug, 0, TestMessage, null, Formatter);
+            logger.Log(LogLevel.Trace, 0, TestMessage, null, Formatter);
+            logger.Log(LogLevel.Information, 0, TestMessage, null, Formatter);
+            logger.Log(LogLevel.Warning, 0, TestMessage, null, Formatter);
+            logger.Log(LogLevel.Error, 0, TestMessage, null, Formatter);
+            logger.Log(LogLevel.Critical, 0, TestMessage, null, Formatter);
 
             Assert.Equal(6, sink.Writes.Count);
-            Assert.Equal(LogEventLevel.Verbose, sink.Writes[0].Level);
-            Assert.Equal(LogEventLevel.Debug, sink.Writes[1].Level);
+            Assert.Equal(LogEventLevel.Debug, sink.Writes[0].Level);
+            Assert.Equal(LogEventLevel.Verbose, sink.Writes[1].Level);
             Assert.Equal(LogEventLevel.Information, sink.Writes[2].Level);
             Assert.Equal(LogEventLevel.Warning, sink.Writes[3].Level);
             Assert.Equal(LogEventLevel.Error, sink.Writes[4].Level);
@@ -96,27 +99,27 @@ namespace Serilog.Extensions.Logging.Test
         }
 
         [Theory]
-        [InlineData(LogLevel.Verbose, LogLevel.Verbose, 1)]
-        [InlineData(LogLevel.Verbose, LogLevel.Information, 1)]
-        [InlineData(LogLevel.Verbose, LogLevel.Warning, 1)]
-        [InlineData(LogLevel.Verbose, LogLevel.Error, 1)]
-        [InlineData(LogLevel.Verbose, LogLevel.Critical, 1)]
-        [InlineData(LogLevel.Information, LogLevel.Verbose, 0)]
+        [InlineData(LogLevel.Trace, LogLevel.Trace, 1)]
+        [InlineData(LogLevel.Trace, LogLevel.Information, 1)]
+        [InlineData(LogLevel.Trace, LogLevel.Warning, 1)]
+        [InlineData(LogLevel.Trace, LogLevel.Error, 1)]
+        [InlineData(LogLevel.Trace, LogLevel.Critical, 1)]
+        [InlineData(LogLevel.Information, LogLevel.Trace, 0)]
         [InlineData(LogLevel.Information, LogLevel.Information, 1)]
         [InlineData(LogLevel.Information, LogLevel.Warning, 1)]
         [InlineData(LogLevel.Information, LogLevel.Error, 1)]
         [InlineData(LogLevel.Information, LogLevel.Critical, 1)]
-        [InlineData(LogLevel.Warning, LogLevel.Verbose, 0)]
+        [InlineData(LogLevel.Warning, LogLevel.Trace, 0)]
         [InlineData(LogLevel.Warning, LogLevel.Information, 0)]
         [InlineData(LogLevel.Warning, LogLevel.Warning, 1)]
         [InlineData(LogLevel.Warning, LogLevel.Error, 1)]
         [InlineData(LogLevel.Warning, LogLevel.Critical, 1)]
-        [InlineData(LogLevel.Error, LogLevel.Verbose, 0)]
+        [InlineData(LogLevel.Error, LogLevel.Trace, 0)]
         [InlineData(LogLevel.Error, LogLevel.Information, 0)]
         [InlineData(LogLevel.Error, LogLevel.Warning, 0)]
         [InlineData(LogLevel.Error, LogLevel.Error, 1)]
         [InlineData(LogLevel.Error, LogLevel.Critical, 1)]
-        [InlineData(LogLevel.Critical, LogLevel.Verbose, 0)]
+        [InlineData(LogLevel.Critical, LogLevel.Trace, 0)]
         [InlineData(LogLevel.Critical, LogLevel.Information, 0)]
         [InlineData(LogLevel.Critical, LogLevel.Warning, 0)]
         [InlineData(LogLevel.Critical, LogLevel.Error, 0)]
@@ -127,7 +130,7 @@ namespace Serilog.Extensions.Logging.Test
             var logger = t.Item1;
             var sink = t.Item2;
 
-            logger.Log(logLevel, 0, TestMessage, null, null);
+            logger.Log(logLevel, 0, TestMessage, null, Formatter);
 
             Assert.Equal(expected, sink.Writes.Count);
         }
@@ -135,12 +138,12 @@ namespace Serilog.Extensions.Logging.Test
         [Fact]
         public void LogsCorrectMessage()
         {
-            var t = SetUp(LogLevel.Verbose);
+            var t = SetUp(LogLevel.Trace);
             var logger = t.Item1;
             var sink = t.Item2;
 
-            logger.Log(LogLevel.Information, 0, null, null, null);
-            logger.Log(LogLevel.Information, 0, TestMessage, null, null);
+            logger.Log<object>(LogLevel.Information, 0, null, null, Formatter);
+            logger.Log(LogLevel.Information, 0, TestMessage, null, Formatter);
 
             Assert.Equal(1, sink.Writes.Count);
             Assert.Equal(TestMessage, sink.Writes[0].RenderMessage());
@@ -149,13 +152,13 @@ namespace Serilog.Extensions.Logging.Test
         [Fact]
         public void CarriesException()
         {
-            var t = SetUp(LogLevel.Verbose);
+            var t = SetUp(LogLevel.Trace);
             var logger = t.Item1;
             var sink = t.Item2;
 
             var exception = new Exception();
 
-            logger.Log(LogLevel.Information, 0, "Test", exception, null);
+            logger.Log(LogLevel.Information, 0, "Test", exception, Formatter);
 
             Assert.Equal(1, sink.Writes.Count);
             Assert.Same(exception, sink.Writes[0].Exception);
@@ -164,13 +167,13 @@ namespace Serilog.Extensions.Logging.Test
         [Fact]
         public void SingleScopeProperty()
         {
-            var t = SetUp(LogLevel.Verbose);
+            var t = SetUp(LogLevel.Trace);
             var logger = t.Item1;
             var sink = t.Item2;
 
-            using (logger.BeginScopeImpl(new FoodScope("pizza")))
+            using (logger.BeginScope((new FoodScope("pizza")).GetValues()))
             {
-                logger.Log(LogLevel.Information, 0, TestMessage, null, null);
+                logger.Log(LogLevel.Information, 0, TestMessage, null, Formatter);
             }
 
             Assert.Equal(1, sink.Writes.Count);
@@ -181,15 +184,15 @@ namespace Serilog.Extensions.Logging.Test
         [Fact]
         public void NestedScopeSameProperty()
         {
-            var t = SetUp(LogLevel.Verbose);
+            var t = SetUp(LogLevel.Trace);
             var logger = t.Item1;
             var sink = t.Item2;
 
-            using (logger.BeginScopeImpl(new FoodScope("avocado")))
+            using (logger.BeginScope((new FoodScope("avocado")).GetValues()))
             {
-                using (logger.BeginScopeImpl(new FoodScope("bacon")))
+                using (logger.BeginScope((new FoodScope("bacon")).GetValues()))
                 {
-                    logger.Log(LogLevel.Information, 0, TestMessage, null, null);
+                    logger.Log(LogLevel.Information, 0, TestMessage, null, Formatter);
                 }
             }
 
@@ -202,15 +205,15 @@ namespace Serilog.Extensions.Logging.Test
         [Fact]
         public void NestedScopesDifferentProperties()
         {
-            var t = SetUp(LogLevel.Verbose);
+            var t = SetUp(LogLevel.Trace);
             var logger = t.Item1;
             var sink = t.Item2;
 
-            using (logger.BeginScopeImpl(new FoodScope("spaghetti")))
+            using (logger.BeginScope((new FoodScope("spaghetti")).GetValues()))
             {
-                using (logger.BeginScopeImpl(new LuckyScope(7)))
+                using (logger.BeginScope((new LuckyScope(7)).GetValues()))
                 {
-                    logger.Log(LogLevel.Information, 0, TestMessage, null, null);
+                    logger.Log(LogLevel.Information, 0, TestMessage, null, Formatter);
                 }
             }
 
@@ -227,7 +230,7 @@ namespace Serilog.Extensions.Logging.Test
             var selfLog = new StringWriter();
             SelfLog.Out = selfLog;
 
-            var t = SetUp(LogLevel.Verbose);
+            var t = SetUp(LogLevel.Trace);
             var logger = t.Item1;
             var sink = t.Item2;
 
@@ -241,7 +244,7 @@ namespace Serilog.Extensions.Logging.Test
             Assert.Empty(selfLog.ToString());
         }
 
-        private class FoodScope : ILogValues
+        private class FoodScope
         {
             readonly string _name;
 
@@ -256,7 +259,7 @@ namespace Serilog.Extensions.Logging.Test
             }
         }
 
-        private class LuckyScope : ILogValues
+        private class LuckyScope
         {
             readonly int _luckyNumber;
 

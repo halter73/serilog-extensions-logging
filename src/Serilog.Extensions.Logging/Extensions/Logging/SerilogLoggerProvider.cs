@@ -2,11 +2,10 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-#if NET451 || DNX451
+using System.Collections.Generic;
+#if NET451
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Messaging;
-#else
-using System.Threading;
 #endif
 using Microsoft.Extensions.Logging;
 using Serilog.Core;
@@ -33,7 +32,7 @@ namespace Serilog.Extensions.Logging
             return new SerilogLogger(this, _logger, name);
         }
 
-        public IDisposable BeginScopeImpl(string name, object state)
+        public IDisposable BeginScope<TState>(string name, TState state)
         {
             return new SerilogLoggerScope(this, name, state);
         }
@@ -42,10 +41,10 @@ namespace Serilog.Extensions.Logging
         {
             for (var scope = CurrentScope; scope != null; scope = scope.Parent)
             {
-                var stateStructure = scope.State as ILogValues;
+                var stateStructure = scope.State as IEnumerable<KeyValuePair<string, object>>;
                 if (stateStructure != null)
                 {
-                    foreach (var keyValue in stateStructure.GetValues())
+                    foreach (var keyValue in stateStructure)
                     {
                         if (keyValue.Key == OriginalFormatPropertyName && keyValue.Value is string)
                             continue;

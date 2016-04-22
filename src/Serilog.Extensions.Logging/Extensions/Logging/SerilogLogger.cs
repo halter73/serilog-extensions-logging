@@ -1,14 +1,15 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using Microsoft.Extensions.Logging;
 using Serilog.Core;
 using Serilog.Events;
-using FrameworkLogger = Microsoft.Extensions.Logging.ILogger;
-using System.Reflection;
 using Serilog.Parsing;
+using FrameworkLogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace Serilog.Extensions.Logging
 {
@@ -39,32 +40,36 @@ namespace Serilog.Extensions.Logging
             }
         }
 
-        public IDisposable BeginScopeImpl(object state)
+        public IDisposable BeginScope<TState>(TState state)
         {
-            return _provider.BeginScopeImpl(_name, state);
+            return _provider.BeginScope(_name, state);
         }
 
         public bool IsEnabled(LogLevel logLevel)
         {
             return _logger.IsEnabled(ConvertLevel(logLevel));
         }
-
-        public void Log(LogLevel logLevel, int eventId, object state, Exception exception, Func<object, Exception, string> formatter)
+        
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
             var level = ConvertLevel(logLevel);
             if (!_logger.IsEnabled(level))
             {
                 return;
             }
+            
+            if (formatter == null)
+            {
+                throw new ArgumentNullException(nameof(formatter));
+            }
 
             var logger = _logger;
             string messageTemplate = null;
-            var format = formatter ?? ((s,_) => LogFormatter.Formatter(s, null));
 
-            var structure = state as ILogValues;
+            var structure = state as IEnumerable<KeyValuePair<string, object>>;
             if (structure != null)
             {
-                foreach (var property in structure.GetValues())
+                foreach (var property in structure)
                 {
                     if (property.Key == SerilogLoggerProvider.OriginalFormatPropertyName && property.Value is string)
                     {
@@ -86,14 +91,14 @@ namespace Serilog.Extensions.Logging
                 if (messageTemplate == null && !stateTypeInfo.IsGenericType)
                 {
                     messageTemplate = "{" + stateType.Name + ":l}";
-                    logger = logger.ForContext(stateType.Name, format(state, null));
+                    logger = logger.ForContext(stateType.Name, formatter(state, null));
                 }
             }
 
             if (messageTemplate == null && state != null)
             {
                 messageTemplate = "{State:l}";
-                logger = logger.ForContext("State", format(state, null));
+                logger = logger.ForContext("State", formatter(state, null));
             }
 
             if (string.IsNullOrEmpty(messageTemplate))
@@ -101,7 +106,7 @@ namespace Serilog.Extensions.Logging
                 return;
             }
 
-            if (eventId != 0)
+            if (eventId.Id != 0)
             {
                 logger = logger.ForContext("EventId", eventId);
             }
@@ -123,7 +128,7 @@ namespace Serilog.Extensions.Logging
                     return LogEventLevel.Warning;
                 case LogLevel.Information:
                     return LogEventLevel.Information;
-                case LogLevel.Verbose:
+                case LogLevel.Debug:
                     return LogEventLevel.Debug;
                 default:
                     return LogEventLevel.Verbose;

@@ -196,3 +196,4 @@ FakesAssemblies/
 *.opt
 *.orig
 project.lock.json
+.build/
