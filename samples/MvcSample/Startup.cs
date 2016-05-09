@@ -44,6 +44,11 @@ namespace MvcSample
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.Configure<IISOptions>(options =>
+            {
+                optoins.AuthenticationDescriptions.Clear()
+            });
+            
             // Add framework services.
             services.AddEntityFramework()
                 .AddSqlServer()
@@ -91,7 +96,7 @@ namespace MvcSample
                 catch { }
             }
 
-            app.UseIISPlatformHandler(options => options.AuthenticationDescriptions.Clear());
+            app.UseIISIntegration();
 
             app.UseStaticFiles();
 
@@ -108,6 +113,17 @@ namespace MvcSample
         }
 
         // Entry point for the application.
-        public static void Main(string[] args) => WebApplication.Run<Startup>(args);
+        public static void Main(string[] args)
+        {
+            var host = new WebHostBuilder()
+                .UseDefaultHostingConfiguration(args)
+                .UseKestrel()
+                .UseUrls("http://localhost:5000")
+                .UseContentRoot(Directory.GetCurrentDirectory())
+                .UseStartup<Startup>()
+                .Build();
+
+            host.Run();
+        }
     }
 }
